@@ -1,0 +1,6 @@
+mcp>=2.3,<3
+langgraph>=0.4
+boto3>=1.40
+uvicorn>=0.30
+starlette>=0.40
+anyio>=4
