@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CareCircle · Alexa+ Simulator</title>
+<style>
+:root{--bg:#0b1020;--panel:#121a2f;--line:#22304f;--text:#e7ecf7;--muted:#8d9bb8;--accent:#38bdf8;--ok:#34d399;--warn:#fbbf24;--bad:#f87171}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line)}
+header b{font-size:17px}header a{color:var(--accent);text-decoration:none;font-size:14px}
+.badge{font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);margin-left:8px}
+main{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px;padding:16px;max-width:1300px;margin:auto}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.device{display:flex;flex-direction:column;align-items:center;gap:10px;padding:10px 0 4px}
+.ring{width:132px;height:132px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#1e293b,#0f172a);box-shadow:0 0 0 6px #0f172a,0 0 0 8px var(--line);display:grid;place-items:center;transition:.3s}
+.ring.listen{box-shadow:0 0 0 6px #0f172a,0 0 0 9px var(--accent),0 0 40px var(--accent)}
+.ring.think{animation:pulse 1s infinite}.ring.speak{box-shadow:0 0 0 6px #0f172a,0 0 0 9px var(--ok),0 0 40px var(--ok)}
+@keyframes pulse{50%{box-shadow:0 0 0 6px #0f172a,0 0 0 9px #6366f1,0 0 30px #6366f1}}
+.mic{width:64px;height:64px;border-radius:50%;border:0;background:var(--accent);color:#04202e;font-size:26px;cursor:pointer}
+.status{color:var(--muted);font-size:13px;min-height:20px}
+.chat{height:340px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:6px 2px;margin-top:8px}
+.msg{max-width:85%;padding:9px 12px;border-radius:14px}.u{align-self:flex-end;background:#1d4ed8}.a{align-self:flex-start;background:#1f2a44}
+.a small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+form{display:flex;gap:8px;margin-top:8px}input{flex:1;background:#0b1328;border:1px solid var(--line);color:var(--text);border-radius:10px;padding:10px}
+button.send{background:#1f2a44;color:var(--text);border:1px solid var(--line);border-radius:10px;padding:0 14px;cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.chip{background:#0b1328;border:1px solid var(--line);color:var(--muted);border-radius:99px;padding:5px 10px;font-size:13px;cursor:pointer}
+.chip:hover{color:var(--text);border-color:var(--accent)}
+h3{margin:0 0 4px;font-size:15px}.sub{color:var(--muted);font-size:13px;margin:0 0 10px}
+.trace{display:flex;flex-direction:column;gap:8px;max-height:560px;overflow:auto}
+.t{border:1px solid var(--line);border-radius:12px;padding:10px;background:#0d1530}
+.t .h{display:flex;justify-content:space-between;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+.t .n{color:var(--accent)}.t pre{margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font-size:12px;color:#b9c6e0;max-height:160px;overflow:auto}
+.safety{font-size:12px;padding:6px 10px;border-radius:10px;border:1px solid var(--line)}
+.pass{color:var(--ok)}.fix{color:var(--warn)}
+</style>
+</head>
+<body>
+<header><div><b>Alexa+ <span style="color:var(--muted);font-weight:400">(simulated)</span> × CareCircle</b><span class="badge" id="mode">…</span></div>
+<a href="/dashboard" target="_blank">Open family dashboard →</a></header>
+<main>
+<section class="card">
+  <div class="device"><div class="ring" id="ring"><button class="mic" id="mic" title="Hold a conversation">🎙</button></div>
+  <div class="status" id="status">Tap the mic and speak, or type below.</div></div>
+  <div class="chat" id="chat"></div>
+  <form id="f"><input id="q" placeholder="e.g. I just took my blood pressure tablet" autocomplete="off"><button class="send">Send</button></form>
+  <div class="chips" id="chips"></div>
+</section>
+<section class="card">
+  <h3>MCP activity</h3><p class="sub">Live tool calls from the assistant to the CareCircle MCP server (Streamable HTTP), plus the safety judge verdict.</p>
+  <div class="trace" id="trace"><div class="sub">No calls yet.</div></div>
+</section>
+</main>
+<script>
+const $=s=>document.querySelector(s);const chat=$('#chat'),trace=$('#trace'),ring=$('#ring'),statusEl=$('#status');
+const history=[];
+const DEMO=["What do I need to do today?","I just took my blood pressure tablet","I feel dizzy again today","When is my next doctor's appointment?","Can I take two metformin tonight since I missed one?","Please tell my son I'd like a call this evening","I fell in the bathroom and my hip hurts"];
+DEMO.forEach(t=>{const c=document.createElement('span');c.className='chip';c.textContent=t;c.onclick=()=>ask(t);$('#chips').appendChild(c)});
+fetch('/health').then(r=>r.json()).then(h=>$('#mode').textContent=`LLM: ${h.llm} · storage: ${h.storage}`);
+function bubble(text,who,meta){const d=document.createElement('div');d.className='msg '+who;d.textContent=text;if(meta){const s=document.createElement('small');s.textContent=meta;d.appendChild(s)}chat.appendChild(d);chat.scrollTop=chat.scrollHeight}
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function renderTrace(r,q){if(trace.firstChild&&trace.firstChild.className==='sub')trace.innerHTML='';
+  const wrap=document.createElement('div');wrap.style.cssText='display:flex;flex-direction:column;gap:6px;border-left:2px solid var(--line);padding-left:10px';
+  wrap.innerHTML=`<div class="sub" style="margin:0">“${esc(q)}” · ${r.mode} · ${r.ms} ms</div>`;
+  (r.trace||[]).forEach(t=>{const d=document.createElement('div');d.className='t';
+    d.innerHTML=`<div class="h"><span class="n">tools/call → ${t.tool}</span><span>${t.ms} ms${t.error?' · error':''}</span></div><pre>args ${esc(JSON.stringify(t.args))}\n\nresult ${esc(JSON.stringify(t.result,null,1)).slice(0,1600)}</pre>`;wrap.appendChild(d)});
+  if(r.safety){const s=document.createElement('div');s.className='safety';const v=r.safety;
+    const issues=[...(v.rule_issues||[]),...((v.judge&&v.judge.issues)||[])];
+    s.innerHTML=v.rewritten?`<span class="fix">⚠ Safety judge rewrote the reply</span> — ${esc(issues.join('; ')||'')}<br><span class="sub">Draft: ${esc(r.draft)}</span>`:`<span class="pass">✓ Safety judge passed</span>${v.judge?` · clarity ${v.judge.clarity}/5 · grounded ${v.judge.grounded}`:' (rules)'}`;wrap.appendChild(s)}
+  trace.prepend(wrap)}
+let voices=[];speechSynthesis.onvoiceschanged=()=>voices=speechSynthesis.getVoices();
+function speak(t){try{const u=new SpeechSynthesisUtterance(t);u.rate=0.95;u.voice=(voices.find(v=>/en-US/.test(v.lang)&&/female|samantha|aria|jenny|google us/i.test(v.name))||voices.find(v=>/en/.test(v.lang)))||null;
+  ring.className='ring speak';u.onend=()=>ring.className='ring';speechSynthesis.speak(u)}catch(e){ring.className='ring'}}
+async function ask(q){if(!q.trim())return;bubble(q,'u');history.push({role:'user',text:q});ring.className='ring think';statusEl.textContent='Thinking…';
+  try{const r=await (await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:q,history:history.slice(0,-1)})})).json();
+    bubble(r.reply,'a',(r.trace||[]).map(t=>t.tool).join(' · ')||'no tools');history.push({role:'assistant',text:r.reply});renderTrace(r,q);statusEl.textContent='';speak(r.reply)}
+  catch(e){bubble('Sorry, something went wrong: '+e,'a');ring.className='ring'}}
+$('#f').onsubmit=e=>{e.preventDefault();const q=$('#q').value;$('#q').value='';ask(q)};
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+$('#mic').onclick=()=>{if(!SR){statusEl.textContent='Voice input needs Chrome. Type instead.';return}
+  speechSynthesis.cancel();const r=new SR();r.lang='en-US';r.interimResults=true;ring.className='ring listen';statusEl.textContent='Listening…';
+  r.onresult=e=>{const t=[...e.results].map(x=>x[0].transcript).join('');statusEl.textContent=t;if(e.results[e.results.length-1].isFinal){ask(t)}};
+  r.onerror=e=>{statusEl.textContent='Mic error: '+e.error;ring.className='ring'};r.onend=()=>{if(ring.className==='ring listen')ring.className='ring'};r.start()};
+</script>
+</body>
+</html>
