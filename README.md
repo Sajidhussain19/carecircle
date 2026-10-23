@@ -4,6 +4,9 @@
 > that lets an elderly parent manage medications, appointments and daily wellbeing just by talking to Alexa+.
 > A **LangGraph Care Risk Agent** on **Amazon Bedrock** spots worrying patterns and keeps the family informed.
 
+**Live demo (AWS):** [Alexa+ simulator](https://d6emajsgztu6y.cloudfront.net/alexa) · [Family dashboard](https://d6emajsgztu6y.cloudfront.net/dashboard) · MCP endpoint `https://d6emajsgztu6y.cloudfront.net/mcp`
+(The live deployment currently runs the AI layer in rule-based mode because Bedrock access is blocked on our account; see `docs/FRICTION_LOG.md`.)
+
 Millions of elderly people live alone while their children live in other cities. The children worry and call
 every day, but a phone call can't tell you that Mum has skipped her evening tablet three times this week and has
 also mentioned feeling dizzy twice. CareCircle notices that kind of pattern.
